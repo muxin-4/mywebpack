@@ -13,26 +13,16 @@ const moduleAnalyser = (filename) => {
   const dependencies = {};
   traverse(ast, {
     ImportDeclaration({ node }) {
-      // console.log("node1", node);
       const dirname = path.dirname(filename);
       const newFile = "./" + path.join(dirname, node.source.value);
-      console.log("dirname1", dirname);
-      console.log("newFile1", newFile);
       dependencies[node.source.value] = newFile;
     },
   });
-
-  console.log("dependencies1", dependencies);
-
-  // console.log("ast1", ast.program.body);
-
-  // console.log("content", content);
 
   const { code } = babel.transformFromAst(ast, null, {
     presets: ["@babel/preset-env"],
   });
 
-  console.log("code1", code);
   return {
     filename,
     dependencies,
@@ -40,5 +30,32 @@ const moduleAnalyser = (filename) => {
   };
 };
 
-const moduleInfo = moduleAnalyser("./src/index.js");
-console.log("moduleInfo", moduleInfo);
+const makeDependenciesGraph = (entry) => {
+  const entryModule = moduleAnalyser(entry);
+
+  // 使用数组实现递归
+  const graghArray = [entryModule];
+  for (let i = 0; i < graghArray.length; i++) {
+    const item = graghArray[i];
+
+    const { dependencies } = item;
+    if (dependencies) {
+      for (let j in dependencies) {
+        graghArray.push(moduleAnalyser(dependencies[j]));
+      }
+    }
+  }
+
+  const graph = {};
+  graghArray.forEach((item) => {
+    graph[item.filename] = {
+      dependencies: item.dependencies,
+      code: item.code,
+    };
+  });
+
+  return graph;
+};
+
+const graghInfo = makeDependenciesGraph("./src/index.js");
+console.log("graghInfo", graghInfo);
